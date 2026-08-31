@@ -1,0 +1,8 @@
+{
+  "name": "AX Culture & Talent Intelligence",
+  "description": "An AX intelligence agent that collects organizational-culture, ways-of-working, and skill-based HR signals from global People & Culture sources, research houses, and domestic enterprise blogs, verifies each source against domain/period/citation rules (Evidence Gate), and turns them into evidence-backed reports synced to Notion for AX and people-development planning.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

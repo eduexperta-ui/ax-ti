@@ -1,11 +1,135 @@
-<div align="center">
+# AX Culture & Talent Intelligence
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+글로벌 People & Culture 자료와 HR 리서치·국내 선도기업 조직문화 사례·컨퍼런스 자료에서 최신 조직문화·일하는 방식 동향을 수집하고,
+**발행 시점과 출처를 서버에서 검증해 확인된 근거만 인용된 리포트**를 생성해 Notion DB에 저장합니다.
 
-  <h1>Built with AI Studio</h2>
+---
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## 이 프로젝트가 푸는 문제
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+AI로 조직문화·일하는 방식 동향 리포트를 만들면 그럴듯한 결과가 나옵니다. 문제는 **그 결과를 조직이 믿고 전파해도 되는지**입니다.
 
-</div>
+이 시스템은 사실 전체를 검증한다고 주장하지 않습니다. 대신
+**검증되지 않은 근거를 인용한 AI 응답이 정상 리포트처럼 표시되거나 저장되는 것을 차단합니다.**
+
+```
+[수집 조건 설정]           기간 · 카테고리 · 타깃 · 데이터 소스
+       │
+       ▼
+[1단계] 기술 시그널 스캐닝    Google Search Grounding으로 실제 문서 검색
+       │
+       ▼
+[2단계] Evidence Ledger      도메인·발행일 검증을 통과한 항목만
+        구성                 [E1], [E2]... 식별자를 부여해 원장에 등재
+       │
+       ▼
+[Evidence Gate]              리포트가 인용한 [E1],[E2]... 각각이
+   ← 이 프로젝트의 핵심        실제 원장에 존재하는지 서버가 대조
+       │
+       ├── 인용 전부 유효 ──▶ 리포트 + 대시보드 + 근거 목록 → Notion 자동 저장
+       └── 미등재 근거 인용 ─▶ 응답 전체 거부 (422 INVALID_EVIDENCE_CITATION)
+```
+
+### 세 겹의 방어
+
+| 단계 | 하는 일 |
+| --- | --- |
+| 근거 필터링 | 도메인 화이트리스트 + 발행일 기간 검증을 통과한 항목만 원장에 등재. 유효 근거가 0건이면 리포트를 만들지 않고 "근거 부족"을 그대로 반환 |
+| **인용 무결성 검증** | 리포트에 등장한 인용 ID를 전부 추출해 원장과 대조. 하나라도 없으면 **응답 전체를 거부** |
+| 과장 표현 필터 | 프롬프트 지시 + 서버 강제 치환의 이중 방어. 적용 여부를 화면 배지로 노출 |
+
+세 겹 모두 같은 철학입니다 — **"모델에게 잘 하라고 부탁하는 것"과 "모델이 실수해도 결과가 새어나가지 않게 만드는 것"은 다릅니다.**
+
+---
+
+## 기술 스택
+
+| 영역 | 사용 기술 |
+| --- | --- |
+| 프론트엔드 | React 19 · TypeScript · Vite · Tailwind CSS v4 |
+| 백엔드 | Express (`server.ts`) — Vercel 서버리스 함수로 매핑 |
+| AI | Gemini API (`gemini-3.6-flash` → `gemini-3.5-flash-lite` 폴백) + Google Search Grounding |
+| 연동 | Notion API (`@notionhq/client`) |
+| 배포 | Vercel (Fluid Compute) |
+
+---
+
+## 로컬 실행
+
+**필요:** Node.js 20 이상
+
+```bash
+# 1. 의존성 설치
+npm install
+
+# 2. 환경변수 설정 — .env.example을 복사해 실제 키를 채웁니다
+cp .env.example .env
+
+# 3. 개발 서버 실행 (http://localhost:3000)
+npm run dev
+```
+
+### 환경변수
+
+`.env` 파일에 아래 세 가지가 모두 필요합니다.
+
+| 변수 | 용도 | 발급처 |
+| --- | --- | --- |
+| `GEMINI_API_KEY` | 조직문화·일하는 방식 동향 수집·리포트 생성 | [Google AI Studio](https://aistudio.google.com/apikey) |
+| `NOTION_API_KEY` | 리포트 자동 저장 | [Notion Integrations](https://www.notion.so/my-integrations) |
+| `NOTION_DATABASE_ID` | 저장 대상 데이터베이스 | Notion DB URL의 32자리 ID |
+
+> Notion 데이터베이스 페이지 우측 상단 `···` → **연결 추가**에서 Integration을 연결해야 저장이 동작합니다.
+> `GEMINI_API_KEY`는 서버에서만 사용되며 프론트엔드 번들에 포함되지 않습니다.
+
+---
+
+## 명령어
+
+| 명령 | 설명 |
+| --- | --- |
+| `npm run dev` | 개발 서버 (Vite + Express) |
+| `npm test` | 회귀 테스트 — API 키·네트워크 불필요 |
+| `npm run lint` | 타입 체크 (`tsc --noEmit`) |
+| `npm run build` | 프로덕션 빌드 |
+
+### 테스트
+
+`tests/regression.test.ts`는 **이 프로젝트에서 실제로 여러 번 깨졌던 지점**만 고정합니다.
+전부 순수 함수라 외부 호출이 없어 비용 없이 반복 실행할 수 있습니다.
+
+- 근거 카드에 프롬프트 출력 양식이 노출되는 문제 (2회 재발)
+- 과장어 치환이 어미를 깨뜨려 비문을 만드는 문제 (`혁신적인` → `새로운인`)
+- 인용 마커의 대괄호가 사라지는 회귀 (`도입했습니다E4.`)
+- 마크다운 들여쓰기·표 정렬 붕괴
+- 같은 기사가 중복 등재되는 문제
+
+---
+
+## 문서
+
+| 문서 | 내용 |
+| --- | --- |
+| [`docs/`](./docs) | 설계기 · 측정 기록 |
+| [`BACKLOG.md`](./BACKLOG.md) | 미뤄둔 작업과 그 이유 |
+
+주요 측정 기록:
+
+- **Google Search Grounding의 비결정성** — 동일 조건 4회 중 3회가 검색을 실행하지 않았고,
+  에러가 아니라 HTTP 200으로 정상 종료됨. 원인 규명과 완화책
+- **사고 레벨 실험** — `LOW` / `MINIMAL` / `HIGH` 3단계 실측. 가설이 반증된 기록
+
+---
+
+## 알려진 한계
+
+정직하게 남깁니다.
+
+- **검색 실행이 비결정적입니다.** `googleSearch`는 모델이 검색 여부를 스스로 정하는 선택적 도구이며,
+  강제하는 API 파라미터가 없습니다. 검색 미실행을 감지해 1회 재시도하는 안전망이 있지만
+  **확률을 낮출 뿐 원인을 제거하지는 못합니다.**
+- **발행일은 추정값입니다.** 본문과 URL에서 정규식으로 추출하므로 원문과 다를 수 있어,
+  화면에 "발행 추정일"로 표기합니다.
+- **근거 링크는 리다이렉트 주소입니다.** Grounding API가 원본 URL 대신 리다이렉트를 반환합니다.
+  모델이 본문에 적어준 원문 주소를 별도로 표기하되, 개별 글 주소인 경우에만 노출합니다.
+- **정량적 운영 지표가 없습니다.** 실사용 트래픽이 없는 개인 POC입니다.
