@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/((?!api|favicon.ico|_vercel).*)$",
+      "destination": "/index.html"
+    }
+  ]
+}
